@@ -1,18 +1,19 @@
-    .data
+.data
+start: .word 0  # Inicializa la variable booleana en falso (0)
 # Variables para la fecha, hora y alarma
-year:       .word 2024
-month:      .word 1
-day:        .word 1
-hour:       .word 12
-minute:     .word 0
-alarm_hour: .word 12
-alarm_minute: .word 0
-alarm_am_pm: .asciiz "AM"
-alarm_active: .word 0
+year:           .word 2000
+month:          .word 1
+day:            .word 1
+hour:           .word 12
+minute:         .word 00
+alarm_hour:     .word 12
+alarm_minute:   .word 0
+alarm_am_pm:    .asciiz "AM"
+alarm_active:   .word 0
 
 current_param: .word 0
-am_str: .asciiz "AM"
-pm_str: .asciiz "PM"
+am_str:        .asciiz "AM"
+pm_str:        .asciiz "PM"
 days_in_month: .word 31
 
 # Mensajes para la salida
@@ -22,24 +23,115 @@ am_pm: .asciiz "AM"
 prompt: .asciiz "Ingrese comando: "
 newline: .asciiz "\n"
 space: .asciiz " "
+space2: .asciiz "           "
+space3: .asciiz "    "
 colon: .asciiz ":"
 dash: .asciiz "-"
 year_label: .asciiz "YEAR"
 mo_label: .asciiz "MO"
 dd_label: .asciiz "DD"
 
-    .text
-main:
-    # Loop principal para el reloj
-main_loop:
+.text
+    li $t0, 1            # Cargar 1 en el registro $t0 (verdadero)
+    bnez $t0, first_visualization
+
+first_visualization:
+	# Imprimir AM/PM
+    li $v0, 4
+    la $a0, am_pm          # "AM" o "PM"
+    syscall
+
+    # Imprimir espacio
+    li $v0, 4
+    la $a0, space
+    syscall
+
+    # Imprimir la hora
+    li $v0, 1
+    lw $a0, hour           # Cargar la hora actual
+    syscall
+
+    # Imprimir ":"
+    li $v0, 4
+    la $a0, colon
+    syscall
+
+    # Imprimir los minutos
+    li $v0, 1
+    lw $a0, minute         # Cargar los minutos actuales
+    syscall
+	
+	# Imprimir espacio
+    li $v0, 4
+    la $a0, space3
+    syscall
+      
+    # Imprimir el año
+    li $v0, 1
+    lw $a0, year
+    syscall
+
+    # Imprimir "-"
+    li $v0, 4
+    la $a0, dash
+    syscall
+
+    # Imprimir el mes
+    li $v0, 1
+    lw $a0, month
+    syscall
+
+    # Imprimir "-"
+    li $v0, 4
+    la $a0, dash
+    syscall
+
+    # Imprimir el día
+    li $v0, 1
+    lw $a0, day
+    syscall
+    
+    li $v0, 4
+    la $a0, newline
+    syscall
+	
+	#Imprimir espacio separador del margen izquierdo
+	li $v0, 4
+    la $a0, space2
+    syscall
+    
+	# Imprimir encabezados YEAR, MO, DD
+    li $v0, 4
+    la $a0, year_label
+    syscall
+    li $v0, 4
+    la $a0, space
+    syscall
+    la $a0, mo_label
+    syscall
+    li $v0, 4
+    la $a0, space
+    syscall
+    la $a0, dd_label
+    syscall
+
     # Imprimir salto de línea
     li $v0, 4
     la $a0, newline
     syscall
+    
+# Loop principal para el reloj
+main_loop:
+	
+    # Imprimir salto de línea
+    li $v0, 4
+    la $a0, newline
+    syscall
+    
     li $v0, 4           # Syscall para imprimir string
     la $a0, prompt      # Cargar el prompt
     syscall
-    
+    	    
     li $v0, 12          # Leer un carácter (comando)
     syscall
     move $t0, $v0       # Guardar el comando en $t0
@@ -60,11 +152,10 @@ main_loop:
     li $t1, 'T'         # Comando Tick
     beq $t0, $t1, tick
     
-    j main_loop
-
- 
+    j main_loop # Indica el final del cilco "main loop"
 
 
+    
 mode:
     # Cargar el modo actual
     lw $t0, current_mode
@@ -182,6 +273,7 @@ display_mode:
     # Por simplicidad, muestra los días del 1 al 31 distribuidos en filas de 7 columnas
     
     li $t1, 1                  # Inicializar el contador de días en 1
+    
 display_calendar_loop:
     li $v0, 1
     move $a0, $t1              # Imprimir el día actual
@@ -216,31 +308,12 @@ display_mode_end:
     j main_loop
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Modo de Configuración de Reloj (1)
 
 config_clock_mode:
 
     # Mostrar el estado actual de la configuración de fecha y hora
-    li $v0, 4
-    la $a0, space
-    syscall
-
+    
     # Mostrar AM/PM
     li $v0, 4
     la $a0, am_pm
@@ -274,8 +347,9 @@ config_clock_mode:
     lw $a0, year
     syscall
     
+    # Imprimir "-"
     li $v0, 4
-    la $a0, space
+    la $a0, dash
     syscall
     
     # Mostrar el mes
@@ -283,8 +357,9 @@ config_clock_mode:
     lw $a0, month
     syscall
     
+    # Imprimir "-"
     li $v0, 4
-    la $a0, space
+    la $a0, dash
     syscall
     
     # Mostrar el día
@@ -349,38 +424,6 @@ decrease_param:
     beq $t0, $t1, decrease_day
 
     j main_loop
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # Modo de Configuración de Alarma (2)
 config_alarm_mode:
