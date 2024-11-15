@@ -17,8 +17,8 @@ pm_str:        .asciiz "PM"
 days_in_month: .word 31
 
 # Mensajes para la salida
-alarm_msg: .asciiz "[ALARM]"
-current_mode: .word 0   # 0: Visualización, 1: Configuración de reloj, 2: Configuración de alarma
+alarm_msg: .asciiz "   ALARM   "
+current_mode: .word 0   # 0: Visualización, 1: Configuración de reloj, 2: Configuración de alarma /// 1: ConfigALARM 2: Fecha y hora 3: visualizar calendar
 am_pm: .asciiz "AM"
 prompt: .asciiz "Ingrese comando: "
 newline: .asciiz "\n"
@@ -30,6 +30,13 @@ dash: .asciiz "-"
 year_label: .asciiz "YEAR"
 mo_label: .asciiz "MO"
 dd_label: .asciiz "DD"
+
+# Para el seteo
+am_arreglo: .asciiz "[AM]"
+#am_arreglo: .asciiz "[AM]"
+#am_arreglo: .asciiz "[AM]"
+#am_arreglo: .asciiz "[AM]"
+#am_arreglo: .asciiz "[AM]"
 
 .text
     li $t0, 1            # Cargar 1 en el registro $t0 (verdadero)
@@ -131,14 +138,19 @@ main_loop:
     li $v0, 4           # Syscall para imprimir string
     la $a0, prompt      # Cargar el prompt
     syscall
-    	    
+        	    
     li $v0, 12          # Leer un carácter (comando)
     syscall
     move $t0, $v0       # Guardar el comando en $t0
+        
+    # Imprimir salto de línea
+    li $v0, 4
+    la $a0, newline
+    syscall
 
     # Comprobación de comandos
     li $t1, 'M'         # Comando Mode
-    beq $t0, $t1, mode
+    beq $t0, $t1, mode1
 
     li $t1, 'S'         # Comando Set
     beq $t0, $t1, set
@@ -152,41 +164,33 @@ main_loop:
     li $t1, 'T'         # Comando Tick
     beq $t0, $t1, tick
     
+    # Esto es un comando extra para salirme
+    
     j main_loop # Indica el final del cilco "main loop"
 
 
-    
-mode:
-    # Cargar el modo actual
-    lw $t0, current_mode
-
-    # Alternar entre los tres modos (0 -> 1 -> 2 -> 0)
-    addi $t0, $t0, 1           # Incrementa el modo en 1
-    li $t1, 3                  # Hay tres modos en total
-    rem $t0, $t0, $t1          # Hacerlo cíclico: 0, 1, 2
-    sw $t0, current_mode       # Guardar el nuevo modo
-
-    # Verificar el nuevo modo y saltar a la sección correspondiente
-    lw $t0, current_mode
-    li $t1, 0                  # Modo de Visualización (0)
-    beq $t0, $t1, display_mode
-
-    li $t1, 1                  # Modo de Configuración de Reloj (1)
-    beq $t0, $t1, config_clock_mode
-
-    li $t1, 2                  # Modo de Configuración de Alarma (2)
-    beq $t0, $t1, config_alarm_mode
-
-    j main_loop
-
-# Modo de Visualización (0)
-
-display_mode:
-    # Imprimir salto de línea
+mode1: 
+	# Imprimir salto de línea
     li $v0, 4
     la $a0, newline
     syscall
+	
+	# Cargar el modo actual
+    lw $t0, current_mode
+    addi $t0, $t0, 1
+    sw $t0, current_mode
     
+    beq $t0, 1, alarm_visualization    
+    beq $t0, 2, date_time_change_visualization 
+    beq $t0, 3, clock_visualization 
+    
+    # Cambio el valor de current_mode a cero otra vez
+    #li $t5, 0
+    #sw $t5, current_mode
+    
+    # Pudiera regresar al main_loop
+    
+alarm_visualization:
     # Imprimir AM/PM
     li $v0, 4
     la $a0, am_pm          # "AM" o "PM"
@@ -211,12 +215,12 @@ display_mode:
     li $v0, 1
     lw $a0, minute         # Cargar los minutos actuales
     syscall
-
-    # Imprimir espacio
+	
+	# Imprimir espacio
     li $v0, 4
-    la $a0, space
+    la $a0, space3
     syscall
-
+      
     # Imprimir el año
     li $v0, 1
     lw $a0, year
@@ -241,13 +245,108 @@ display_mode:
     li $v0, 1
     lw $a0, day
     syscall
+    
+    li $v0, 4
+    la $a0, newline
+    syscall
+	
+	# Imprimir espacio separador del margen izquierdo
+	li $v0, 4
+    la $a0, alarm_msg
+    syscall
+    
+	# Imprimir encabezados YEAR, MO, DD
+    li $v0, 4
+    la $a0, year_label
+    syscall
+    li $v0, 4
+    la $a0, space
+    syscall
+    li $v0, 4
+    la $a0, mo_label
+    syscall
+    li $v0, 4
+    la $a0, space
+    syscall
+    li $v0, 4
+    la $a0, dd_label
+    syscall
 
     # Imprimir salto de línea
     li $v0, 4
     la $a0, newline
     syscall
+    
+    # li $t0, 0
+    
+	j main_loop
 
-    # Imprimir encabezados YEAR, MO, DD
+date_time_change_visualization: 
+	# Imprimir AM/PM
+    li $v0, 4
+    la $a0, am_arreglo         # "AM" o "PM"
+    syscall
+
+    # Imprimir espacio
+    li $v0, 4
+    la $a0, space
+    syscall
+
+    # Imprimir la hora
+    li $v0, 1
+    lw $a0, hour           # Cargar la hora actual
+    syscall
+
+    # Imprimir ":"
+    li $v0, 4
+    la $a0, colon
+    syscall
+
+    # Imprimir los minutos
+    li $v0, 1
+    lw $a0, minute         # Cargar los minutos actuales
+    syscall
+	
+	# Imprimir espacio
+    li $v0, 4
+    la $a0, space3
+    syscall
+      
+    # Imprimir el año
+    li $v0, 1
+    lw $a0, year
+    syscall
+
+    # Imprimir "-"
+    li $v0, 4
+    la $a0, dash
+    syscall
+
+    # Imprimir el mes
+    li $v0, 1
+    lw $a0, month
+    syscall
+
+    # Imprimir "-"
+    li $v0, 4
+    la $a0, dash
+    syscall
+
+    # Imprimir el día
+    li $v0, 1
+    lw $a0, day
+    syscall
+    
+    li $v0, 4
+    la $a0, newline
+    syscall
+	
+	#Imprimir espacio separador del margen izquierdo
+	li $v0, 4
+    la $a0, space2
+    syscall
+    
+	# Imprimir encabezados YEAR, MO, DD
     li $v0, 4
     la $a0, year_label
     syscall
@@ -266,109 +365,46 @@ display_mode:
     li $v0, 4
     la $a0, newline
     syscall
-
-    # Imprimir el calendario mensual
-    # Asumiendo que ya tienes una lista de días para el mes, aquí mostramos un ejemplo simplificado
-    # Mostrar los días del mes en un formato similar
-    # Por simplicidad, muestra los días del 1 al 31 distribuidos en filas de 7 columnas
     
-    li $t1, 1                  # Inicializar el contador de días en 1
-    
-display_calendar_loop:
-    li $v0, 1
-    move $a0, $t1              # Imprimir el día actual
-    syscall
-
-    # Añadir espacio después del día
-    li $v0, 4
-    la $a0, space
-    syscall
-
-    # Incrementar el contador de días
-    addi $t1, $t1, 1
-
-    # Imprimir salto de línea cada 7 días
-    li $t2, 7
-    rem $t3, $t1, $t2
-    beq $t3, $zero, newline_print
-    
-    # Revisar si llegamos al día 31 y terminamos
-    li $t4, 32
-    bge $t1, $t4, display_mode_end
-    j display_calendar_loop
-
-newline_print:
-    li $v0, 4
-    la $a0, newline
-    syscall
-    j display_calendar_loop
-
-display_mode_end:
-    # Regresar al bucle principal
     j main_loop
-
-
-# Modo de Configuración de Reloj (1)
-
-config_clock_mode:
-
-    # Mostrar el estado actual de la configuración de fecha y hora
-    
-    # Mostrar AM/PM
+      
+clock_visualization:
+	# Imprimir AM/PM
     li $v0, 4
-    la $a0, am_pm
+    la $a0, am_pm          # "AM" o "PM"
     syscall
-    
+
+    # Imprimir espacio
     li $v0, 4
     la $a0, space
     syscall
-    
-    # Mostrar la hora
+
+    # Imprimir la hora
     li $v0, 1
-    lw $a0, hour
+    lw $a0, hour           # Cargar la hora actual
     syscall
 
-    # Mostrar los dos puntos para separar hora y minuto
+    # Imprimir ":"
     li $v0, 4
     la $a0, colon
     syscall
 
-    # Mostrar el minuto
+    # Imprimir los minutos
     li $v0, 1
-    lw $a0, minute
+    lw $a0, minute         # Cargar los minutos actuales
     syscall
     
+    # Imprimir salto de línea
     li $v0, 4
-    la $a0, space
+    la $a0, newline
     syscall
     
-    # Mostrar el año
-    li $v0, 1
-    lw $a0, year
-    syscall
+    # reseto de curren_mode
+    li $t5, 0
+    sw $t5, current_mode
     
-    # Imprimir "-"
-    li $v0, 4
-    la $a0, dash
-    syscall
-    
-    # Mostrar el mes
-    li $v0, 1
-    lw $a0, month
-    syscall
-    
-    # Imprimir "-"
-    li $v0, 4
-    la $a0, dash
-    syscall
-    
-    # Mostrar el día
-    li $v0, 1
-    lw $a0, day
-    syscall
-
-    # Volver al bucle principal
     j main_loop
+
 
 # Subrutina para cambiar el parámetro que se está configurando
 set_param:
@@ -425,20 +461,6 @@ decrease_param:
 
     j main_loop
 
-# Modo de Configuración de Alarma (2)
-config_alarm_mode:
-    # Mostrar el prompt para ajustar la alarma
-    li $v0, 4
-    la $a0, newline
-    syscall
-
-    li $v0, 4
-    la $a0, prompt
-    syscall
-
-    # Aquí se podrían agregar más líneas para permitir la configuración de la alarma
-    # Regresar al bucle principal
-    j main_loop
 
 # Función Set
 # Parámetro actual (0: AM/PM, 1: hora, 2: minuto, 3: año, 4: mes, 5: día)
