@@ -10,16 +10,21 @@ alarm_hour:     .word 12
 alarm_minute:   .word 0
 alarm_am_pm:    .asciiz "AM"
 alarm_active:   .word 0
+am_pm: .asciiz "AM"
+hour_s: .asciiz "12"
+min_s: .asciiz "00"
+year_s: .asciiz "2000"
+month_s: .asciiz "01"
+day_s: .asciiz "01" 
+arreglo_start: .word am_pm, hour_s, min_s, year_s, month_s, day_s
 
-current_param: .word 0
+current_param: .word 0 # Para manejar la posicion del elemento que deseo setear
 am_str:        .asciiz "AM"
 pm_str:        .asciiz "PM"
 days_in_month: .word 31
-
-# Mensajes para la salida
+prompt_set_input: .asciiz "COMANDOS VALIDOS:\nS: Continuar en modo \"set\"\nE: Salir del modo \"set\"\n\nIngrese el comando: "
 alarm_msg: .asciiz "   ALARM   "
-current_mode: .word 0   # 0: Visualización, 1: Configuración de reloj, 2: Configuración de alarma /// 1: ConfigALARM 2: Fecha y hora 3: visualizar calendar
-am_pm: .asciiz "AM"
+current_mode: .word 0   #  1: ConfigALARM 2: Fecha y hora 3: visualizar calendar
 prompt: .asciiz "Ingrese comando: "
 newline: .asciiz "\n"
 space: .asciiz " "
@@ -30,13 +35,17 @@ dash: .asciiz "-"
 year_label: .asciiz "YEAR"
 mo_label: .asciiz "MO"
 dd_label: .asciiz "DD"
+prompt_set_active: .asciiz "Ha ingresado al modo \"set\"\n"
+prompt_set_not_active: "Ha salido del modo \"set\"\n"
 
 # Para el seteo
-am_arreglo: .asciiz "[AM]"
-#am_arreglo: .asciiz "[AM]"
-#am_arreglo: .asciiz "[AM]"
-#am_arreglo: .asciiz "[AM]"
-#am_arreglo: .asciiz "[AM]"
+am_pm_arreglo: .asciiz "[AM]"
+hour_arreglo: .asciiz "[12]"
+min_arreglo: .asciiz "[00]"
+year_arreglo: .asciiz "[2000]"
+month_arreglo: .asciiz "[01]"
+day_arreglo: .asciiz "[01]"
+arreglo: .word am_pm_arreglo, hour_arreglo, min_arreglo, year_arreglo, month_arreglo, day_arreglo
 
 .text
     li $t0, 1            # Cargar 1 en el registro $t0 (verdadero)
@@ -45,7 +54,7 @@ am_arreglo: .asciiz "[AM]"
 first_visualization:
 	# Imprimir AM/PM
     li $v0, 4
-    la $a0, am_pm          # "AM" o "PM"
+    la $a0, am_pm        # "AM" o "PM"
     syscall
 
     # Imprimir espacio
@@ -150,7 +159,7 @@ main_loop:
 
     # Comprobación de comandos
     li $t1, 'M'         # Comando Mode
-    beq $t0, $t1, mode1
+    beq $t0, $t1, mode
 
     li $t1, 'S'         # Comando Set
     beq $t0, $t1, set
@@ -169,7 +178,7 @@ main_loop:
     j main_loop # Indica el final del cilco "main loop"
 
 
-mode1: 
+mode: 
 	# Imprimir salto de línea
     li $v0, 4
     la $a0, newline
@@ -181,7 +190,7 @@ mode1:
     sw $t0, current_mode
     
     beq $t0, 1, alarm_visualization    
-    beq $t0, 2, date_time_change_visualization 
+    beq $t0, 2, date_time_visualization 
     beq $t0, 3, clock_visualization 
     
     # Cambio el valor de current_mode a cero otra vez
@@ -281,10 +290,10 @@ alarm_visualization:
     
 	j main_loop
 
-date_time_change_visualization: 
+date_time_visualization: 
 	# Imprimir AM/PM
     li $v0, 4
-    la $a0, am_arreglo         # "AM" o "PM"
+    la $a0, am_pm         # "AM" o "PM
     syscall
 
     # Imprimir espacio
@@ -466,19 +475,246 @@ decrease_param:
 # Parámetro actual (0: AM/PM, 1: hora, 2: minuto, 3: año, 4: mes, 5: día)
 
 set:
-    # Cargar el parámetro actual
+	# $t0 comienza con el valor 'S'
+	li $v0, 4
+	la $a0, prompt_set_active
+	syscall
+	
+	la $a0, newline
+	syscall
+	
+	#Cargar el parámetro actual
     lw $t0, current_param
+    addi $t0, $t0, 1
+    
+   	la $s0, arreglo
+	la $s1, arreglo_start	
+	
+    set_loop:
+    	bgt $t0, 6, end_set_loop
+    	
+    	lw $t3, 0($s0)
+		sw $t3, 0($s1)
+    	move $s2, $s1
+	 
+		# Imprimir AM/PM
+    	li $v0, 4
+    	lw $a0, 0($s2)
+		syscall
+
+    	# Imprimir espacio
+   	 	li $v0, 4
+    	la $a0, space
+    	syscall
+
+    	# Imprimir la hora
+   		li $v0, 4
+   	 	lw $a0, 4($s2)           # Cargar la hora actual
+    	syscall
+
+    	# Imprimir ":"
+    	li $v0, 4
+    	la $a0, colon
+    	syscall
+
+    	# Imprimir los minutos
+    	li $v0, 4
+    	lw $a0, 8($s2)         # Cargar los minutos actuales
+    	syscall
+	
+		# Imprimir espacio
+    	li $v0, 4
+    	la $a0, space3
+    	syscall
+      
+    	# Imprimir el año
+    	li $v0, 4
+    	lw $a0, 12($s2)
+    	syscall
+
+    	# Imprimir "-"
+    	li $v0, 4
+    	la $a0, dash
+    	syscall
+
+    	# Imprimir el mes
+    	li $v0, 4
+    	lw $a0, 16($s2)
+    	syscall
+
+    	# Imprimir "-"
+    	li $v0, 4
+    	la $a0, dash
+    	syscall
+
+    	# Imprimir el día
+    	li $v0, 4
+    	lw $a0, 20($s2)
+   		syscall
+    
+    	li $v0, 4
+    	la $a0, newline
+    	syscall
+	
+		#Imprimir espacio separador del margen izquierdo
+		li $v0, 4
+    	la $a0, space2
+    	syscall
+    
+		# Imprimir encabezados YEAR, MO, DD
+    	li $v0, 4
+    	la $a0, year_label
+    	syscall
+    	li $v0, 4
+    	la $a0, space
+    	syscall
+    	la $a0, mo_label
+    	syscall
+    	li $v0, 4
+    	la $a0, space
+    	syscall
+    	la $a0, dd_label
+    	syscall
+
+    	# Imprimir salto de línea
+    	li $v0, 4
+    	la $a0, newline
+    	syscall
+    	syscall
+    	
+    	
+    	li $v0, 4           # Syscall para imprimir string
+    	la $a0, prompt_set_input      # Cargar el prompt
+    	syscall
+        	    
+    	li $v0, 12          # Leer un carácter (comando)
+    	syscall
+    	move $t1, $v0       
+        
+    	# Imprimir salto de línea
+    	li $v0, 4
+    	la $a0, newline
+    	syscall
+    	syscall
+    	
+    	beq $t1, 'E', date_time_visualization   	
+    	#beq $t1, 'S', #volver hacer el ciclo de set
+		beq $t0, 6, set_loop
+		
+    	addi $t0, $t0, 1 
+    	addi $s0, $s0, 4
+		addi $s1, $s1, 4 
+		  	
+    	j set_loop
+    
+    end_set_loop:
+    	li $t0, 1
+    	j set_loop
+    
+    #beqz $t0,  
+    			
+		
+    
     
     # Incrementar el parámetro actual
-    addi $t0, $t0, 1
-    li $t1, 6           # Número de parámetros
-    rem $t0, $t0, $t1   # Volver a 0 después de 5
+    #addi $t0, $t0, 1
+    #li $t2, 6           # Número de parámetros
+    #rem $t0, $t0, $t2   # Volver a 0 después de 5
     
     # Guardar el nuevo parámetro
-    sw $t0, current_param
+    #sw $t0, current_param
     
-    j main_loop
+    #j main_loop
     
+date_time_set:   
+	move $s2, $s1
+	 
+	# Imprimir AM/PM
+    li $v0, 4
+	lw $a0, 0($s2)
+	syscall
+
+    # Imprimir espacio
+    li $v0, 4
+    la $a0, space
+    syscall
+
+    # Imprimir la hora
+    li $v0, 4
+    lw $a0, 4($s2)           # Cargar la hora actual
+    syscall
+
+    # Imprimir ":"
+    li $v0, 4
+    la $a0, colon
+    syscall
+
+    # Imprimir los minutos
+    li $v0, 4
+    lw $a0, 8($s2)         # Cargar los minutos actuales
+    syscall
+	
+	# Imprimir espacio
+    li $v0, 4
+    la $a0, space3
+    syscall
+      
+    # Imprimir el año
+    li $v0, 4
+    lw $a0, 12($s2)
+    syscall
+
+    # Imprimir "-"
+    li $v0, 4
+    la $a0, dash
+    syscall
+
+    # Imprimir el mes
+    li $v0, 4
+    lw $a0, 16($s2)
+    syscall
+
+    # Imprimir "-"
+    li $v0, 4
+    la $a0, dash
+    syscall
+
+    # Imprimir el día
+    li $v0, 4
+    lw $a0, 20($s2)
+    syscall
+    
+    li $v0, 4
+    la $a0, newline
+    syscall
+	
+	#Imprimir espacio separador del margen izquierdo
+	li $v0, 4
+    la $a0, space2
+    syscall
+    
+	# Imprimir encabezados YEAR, MO, DD
+    li $v0, 4
+    la $a0, year_label
+    syscall
+    li $v0, 4
+    la $a0, space
+    syscall
+    la $a0, mo_label
+    syscall
+    li $v0, 4
+    la $a0, space
+    syscall
+    la $a0, dd_label
+    syscall
+
+    # Imprimir salto de línea
+    li $v0, 4
+    la $a0, newline
+    syscall
+    
+    jr $ra
+    #j main_loop
 
 up:
     lw $t0, current_param
